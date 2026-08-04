@@ -25,7 +25,7 @@ export default function App() {
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
 
-  // Órdenes iniciales de ejemplo
+  // Órdenes iniciales
   const [orders, setOrders] = useState<Orden[]>([
     {
       id: '1',
@@ -55,7 +55,7 @@ export default function App() {
   const [total, setTotal] = useState('');
   const [anticipo, setAnticipo] = useState('');
 
-  // Iniciar Sesión (Login)
+  // Login
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailInput || !passwordInput) {
@@ -131,28 +131,41 @@ export default function App() {
     alert('¡Orden registrada exitosamente!');
   };
 
-  // Cambiar Estatus
-  const cambiarEstado = (id: string, nuevoEstado: Orden['estado']) => {
-    setOrders(orders.map(o => o.id === id ? { ...o, estado: nuevoEstado } : o));
+  // Enviar mensaje de WhatsApp
+  const enviarWhatsApp = (orden: Orden, personalizado?: string) => {
+    const restante = orden.total - orden.anticipo;
+    const mensaje = personalizado 
+      ? personalizado 
+      : `Hola *${orden.cliente}*, te saludamos de *L.A CONTROL*. 🛠️%0A%0AEl estado actual de tu moto (*${orden.moto}* - Placa: *${orden.placa}*) es: *${orden.estado}*.%0A%0A💰 *Presupuesto:*%0A- Total: $${orden.total}%0A- Anticipo: $${orden.anticipo}%0A- Restante: *$${restante}*%0A%0A¡Quedamos a tus órdenes!`;
+    
+    window.open(`https://wa.me/${orden.telefono}?text=${mensaje}`, '_blank');
   };
 
-  // Archivar Orden (Quitar de la vista principal y mandar a Historial)
+  // Cambiar Estatus con aviso automático si está LISTO
+  const cambiarEstado = (orden: Orden, nuevoEstado: Orden['estado']) => {
+    setOrders(orders.map(o => o.id === orden.id ? { ...o, estado: nuevoEstado } : o));
+
+    // Si el estado cambia a "LISTO", lanza la notificación por WhatsApp
+    if (nuevoEstado === 'LISTO' && orden.telefono) {
+      const restante = orden.total - orden.anticipo;
+      const msjListo = `¡Hola *${orden.cliente}*! 👋%0A%0ATu moto *${orden.moto}* (Placa: *${orden.placa}*) ya está *LISTA* para entregarse en *L.A CONTROL*. 🛠️✨%0A%0A💰 Restante a pagar: *$${restante}*%0A%0AYa puedes pasar por ella en nuestro horario de atención. ¡Te esperamos!`;
+      
+      setTimeout(() => {
+        if (confirm(`¿Deseas enviar la notificación por WhatsApp a ${orden.cliente} informando que su moto está LISTA?`)) {
+          enviarWhatsApp(orden, msjListo);
+        }
+      }, 200);
+    }
+  };
+
   const archivarOrden = (id: string) => {
-    if (confirm('¿Deseas enviar esta orden al Historial de Registro? La quita de las activas pero se guarda por seguridad.')) {
+    if (confirm('¿Deseas enviar esta orden al Historial?')) {
       setOrders(orders.map(o => o.id === id ? { ...o, archivada: true } : o));
     }
   };
 
-  // Restaurar Orden
   const desarchivarOrden = (id: string) => {
     setOrders(orders.map(o => o.id === id ? { ...o, archivada: false } : o));
-  };
-
-  // Enviar WhatsApp
-  const enviarWhatsApp = (orden: Orden) => {
-    const restante = orden.total - orden.anticipo;
-    const mensaje = `Hola *${orden.cliente}*, te saludamos de *L.A CONTROL*. 🛠️%0A%0AEl estado actual de tu moto (*${orden.moto}* - Placa: *${orden.placa}*) es: *${orden.estado}*.%0A%0A💰 *Presupuesto:*%0A- Total: $${orden.total}%0A- Anticipo: $${orden.anticipo}%0A- Restante: *$${restante}*%0A%0A¡Quedamos a tus órdenes!`;
-    window.open(`https://wa.me/${orden.telefono}?text=${mensaje}`, '_blank');
   };
 
   const ordenesActivas = orders.filter(o => !o.archivada);
@@ -300,7 +313,7 @@ export default function App() {
               </form>
             </div>
 
-            {/* SELECCIÓN DE PESTAÑAS: ACTIVAS VS HISTORIAL */}
+            {/* SELECCIÓN DE PESTAÑAS */}
             <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
               <button 
                 onClick={() => setTab('activas')} 
@@ -342,7 +355,7 @@ export default function App() {
                           onClick={() => enviarWhatsApp(o)} 
                           style={{ margin: '0.5rem 0', width: '100%', padding: '0.4rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
                         >
-                          📲 Notificar por WhatsApp
+                          📲 Notificar Estado por WhatsApp
                         </button>
                       )}
 
@@ -351,7 +364,7 @@ export default function App() {
                         {(['INGRESADO', 'DIAGNÓSTICO', 'REPARACIÓN', 'LISTO', 'ENTREGADO'] as Orden['estado'][]).map((st) => (
                           <button
                             key={st}
-                            onClick={() => cambiarEstado(o.id, st)}
+                            onClick={() => cambiarEstado(o, st)}
                             style={{
                               padding: '0.25rem 0.5rem',
                               fontSize: '0.7rem',
@@ -368,7 +381,6 @@ export default function App() {
                         ))}
                       </div>
 
-                      {/* Botón para Archivar / Eliminar de la vista activa */}
                       <button 
                         onClick={() => archivarOrden(o.id)} 
                         style={{ marginTop: '0.75rem', width: '100%', padding: '0.4rem', background: '#334155', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem' }}
