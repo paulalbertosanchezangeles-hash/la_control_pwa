@@ -1,72 +1,192 @@
 import React, { useState } from 'react';
+import { INITIAL_ORDERS } from './mockData';
+import { OrdenTrabajo, EstadoMoto } from './types';
+import { Wrench, Search, Phone, Shield, CheckCircle, Clock, FileText, Send, User, Bike, PlusCircle } from 'lucide-react';
 
 export default function App() {
-  const [ordenes, setOrdenes] = useState([]);
-  const [formData, setFormData] = useState({
-    cliente: '',
-    telefono: '',
-    moto: '',
-    placa: '',
-    falla: '',
-    estado: 'En revisión'
+  const [view, setView] = useState<'home' | 'admin' | 'client'>('home');
+  const [orders, setOrders] = useState<OrdenTrabajo[]>(INITIAL_ORDERS);
+  const [searchPlaca, setSearchPlaca] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<OrdenTrabajo | null>(null);
+
+  // Estado del formulario para nueva orden
+  const [newOrder, setNewOrder] = useState({
+    clienteNombre: '',
+    clienteTelefono: '',
+    motoModelo: '',
+    motoPlaca: '',
+    fallaReportada: ''
   });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Estadísticas
+  const totalInTaller = orders.filter(o => o.estado !== 'ENTREGADO').length;
+  const listos = orders.filter(o => o.estado === 'LISTO').length;
+  const pendientes = orders.filter(o => ['INGRESADO', 'DIAGNOSTICO', 'REPUESTOS', 'REPARACION', 'PRUEBAS'].includes(o.estado)).length;
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const found = orders.find(o => o.moto.placa.toLowerCase() === searchPlaca.toLowerCase().trim());
+    if (found) {
+      setSelectedOrder(found);
+    } else {
+      alert('No se encontró ninguna orden con esa placa.');
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.cliente || !formData.moto) return alert('Por favor llena los datos principales');
-    
-    const nuevaOrden = {
-      id: Date.now(),
-      fecha: new Date().toLocaleDateString(),
-      ...formData
+    if (!newOrder.clienteNombre || !newOrder.motoModelo) {
+      return alert('Por favor ingresa al menos el nombre del cliente y el modelo de la moto.');
+    }
+
+    const created: OrdenTrabajo = {
+      id: `ORD-${Date.now().toString().slice(-4)}`,
+      folio: `LA-${Math.floor(1000 + Math.random() * 9000)}`,
+      fechaIngreso: new Date().toISOString().split('T')[0],
+      cliente: {
+        nombre: newOrder.clienteNombre,
+        telefono: newOrder.clienteTelefono,
+      },
+      moto: {
+        modelo: newOrder.motoModelo,
+        placa: newOrder.motoPlaca || 'SIN-PLACA',
+      },
+      estado: 'INGRESADO',
+      trabajosRealizados: [newOrder.fallaReportada || 'Revisión general'],
+      presupuestoTotal: 0,
+      anticipo: 0
     };
 
-    setOrdenes([nuevaOrden, ...ordenes]);
-    setFormData({ cliente: '', telefono: '', moto: '', placa: '', falla: '', estado: 'En revisión' });
+    setOrders([created, ...orders]);
+    setNewOrder({ clienteNombre: '', clienteTelefono: '', motoModelo: '', motoPlaca: '', fallaReportada: '' });
+    alert('¡Orden de trabajo creada con éxito!');
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '600px', margin: 'auto' }}>
-      <h2>📋 Nueva Orden de Trabajo</h2>
-      
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <input name="cliente" placeholder="Nombre del cliente" value={formData.cliente} onChange={handleChange} required style={inputStyle} />
-        <input name="telefono" placeholder="Teléfono" value={formData.telefono} onChange={handleChange} style={inputStyle} />
-        <input name="moto" placeholder="Modelo de Moto (ej. Benelli 302)" value={formData.moto} onChange={handleChange} required style={inputStyle} />
-        <input name="placa" placeholder="Placa / VIN" value={formData.placa} onChange={handleChange} style={inputStyle} />
-        <textarea name="falla" placeholder="Falla reportada / Trabajo a realizar" value={formData.falla} onChange={handleChange} rows="3" style={inputStyle} />
-        
-        <button type="submit" style={btnStyle}>➕ Crear Orden de Trabajo</button>
-      </form>
+    <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', fontFamily: 'sans-serif' }}>
+      {/* Header */}
+      <header style={{ padding: '1rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Wrench style={{ color: '#f59e0b' }} />
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>L.A CONTROL</h1>
+        </div>
+        <nav style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={() => setView('home')} style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', background: view === 'home' ? '#f59e0b' : '#1e293b', color: '#fff', cursor: 'pointer' }}>Inicio</button>
+          <button onClick={() => setView('admin')} style={{ padding: '0.5rem 1rem', borderRadius: '0.375rem', border: 'none', background: view === 'admin' ? '#f59e0b' : '#1e293b', color: '#fff', cursor: 'pointer' }}>Taller</button>
+        </nav>
+      </header>
 
-      <hr style={{ margin: '30px 0' }} />
-
-      <h3>🛠️ Órdenes Registradas ({ordenes.length})</h3>
-      {ordenes.length === 0 ? (
-        <p style={{ color: '#666' }}>No hay órdenes registradas aún.</p>
-      ) : (
-        ordenes.map(orden => (
-          <div key={orden.id} style={cardStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
-              <span>{orden.moto} ({orden.placa || 'Sin placa'})</span>
-              <span style={{ color: '#0070f3' }}>{orden.estado}</span>
+      <main style={{ padding: '1rem', maxWidth: '800px', margin: '0 auto' }}>
+        {view === 'home' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ textAlign: 'center', padding: '2rem 1rem', background: '#1e293b', borderRadius: '0.5rem' }}>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Consulta el Estado de tu Moto</h2>
+              <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Ingresa tu placa para conocer el avance en tiempo real</p>
+              
+              <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                <input
+                  type="text"
+                  placeholder="Ej. ABC1234"
+                  value={searchPlaca}
+                  onChange={(e) => setSearchPlaca(e.target.value)}
+                  style={{ flex: 1, padding: '0.75rem', borderRadius: '0.375rem', border: '1px solid #475569', background: '#0f172a', color: '#fff' }}
+                />
+                <button type="submit" style={{ padding: '0.75rem 1.5rem', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Buscar
+                </button>
+              </form>
             </div>
-            <p style={{ margin: '5px 0', fontSize: '14px' }}><strong>Cliente:</strong> {orden.cliente} | 📞 {orden.telefono}</p>
-            <p style={{ margin: '5px 0', fontSize: '14px', background: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
-              <strong>Detalle:</strong> {orden.falla}
-            </p>
-            <small style={{ color: '#888' }}>Fecha: {orden.fecha}</small>
+
+            {selectedOrder && (
+              <div style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #f59e0b' }}>
+                <h3>Orden: {selectedOrder.folio}</h3>
+                <p><strong>Cliente:</strong> {selectedOrder.cliente.nombre}</p>
+                <p><strong>Moto:</strong> {selectedOrder.moto.modelo} ({selectedOrder.moto.placa})</p>
+                <p><strong>Estado:</strong> <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>{selectedOrder.estado}</span></p>
+              </div>
+            )}
           </div>
-        ))
-      )}
+        )}
+
+        {view === 'admin' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Panel de métricas */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+              <div style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{totalInTaller}</div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>En Taller</div>
+              </div>
+              <div style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#eab308' }}>{pendientes}</div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>En Proceso</div>
+              </div>
+              <div style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#22c55e' }}>{listos}</div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Listos</div>
+              </div>
+            </div>
+
+            {/* Formulario Nueva Orden */}
+            <div style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1rem 0' }}>
+                <PlusCircle style={{ color: '#f59e0b' }} /> Nueva Orden de Trabajo
+              </h3>
+              <form onSubmit={handleCreateOrder} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <input
+                  type="text"
+                  placeholder="Nombre del cliente"
+                  value={newOrder.clienteNombre}
+                  onChange={(e) => setNewOrder({ ...newOrder, clienteNombre: e.target.value })}
+                  style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #475569', background: '#0f172a', color: '#fff' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Teléfono"
+                  value={newOrder.clienteTelefono}
+                  onChange={(e) => setNewOrder({ ...newOrder, clienteTelefono: e.target.value })}
+                  style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #475569', background: '#0f172a', color: '#fff' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Modelo de Moto"
+                  value={newOrder.motoModelo}
+                  onChange={(e) => setNewOrder({ ...newOrder, motoModelo: e.target.value })}
+                  style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #475569', background: '#0f172a', color: '#fff' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Placa / VIN"
+                  value={newOrder.motoPlaca}
+                  onChange={(e) => setNewOrder({ ...newOrder, motoPlaca: e.target.value })}
+                  style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #475569', background: '#0f172a', color: '#fff' }}
+                />
+                <textarea
+                  placeholder="Falla reportada / Servicios"
+                  value={newOrder.fallaReportada}
+                  onChange={(e) => setNewOrder({ ...newOrder, fallaReportada: e.target.value })}
+                  rows={2}
+                  style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #475569', background: '#0f172a', color: '#fff' }}
+                />
+                <button type="submit" style={{ padding: '0.75rem', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Guardar Orden
+                </button>
+              </form>
+            </div>
+
+            {/* Lista de Órdenes */}
+            <h3>Órdenes en Sistema</h3>
+            {orders.map(o => (
+              <div key={o.id} style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem', borderLeft: '4px solid #f59e0b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <strong>{o.folio} - {o.moto.modelo}</strong>
+                  <span style={{ fontSize: '0.875rem', background: '#334155', padding: '0.2rem 0.5rem', borderRadius: '0.25rem' }}>{o.estado}</span>
+                </div>
+                <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.875rem', color: '#94a3b8' }}>Cliente: {o.cliente.nombre} ({o.cliente.telefono})</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
-
-const inputStyle = { padding: '10px', fontSize: '16px', borderRadius: '6px', border: '1px solid #ccc' };
-const btnStyle = { padding: '12px', fontSize: '16px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' };
-const cardStyle = { border: '1px solid #e0e0e0', borderRadius: '8px', padding: '15px', marginBottom: '15px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' };
