@@ -8,11 +8,15 @@ interface Orden {
   telefono: string;
   moto: string;
   placa: string;
+  km: number;
+  proximoKm: number;
+  mecanico: string;
   falla: string;
   refacciones: string;
   total: number;
   anticipo: number;
   estado: 'INGRESADO' | 'DIAGNÓSTICO' | 'REPARACIÓN' | 'LISTO' | 'ENTREGADO';
+  fotos: string[];
   archivada?: boolean;
 }
 
@@ -33,7 +37,10 @@ export default function App() {
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
 
-  // Estados principales
+  // Equipo del taller
+  const mecanicosEquipo = ['Paul (L.A Custom)', 'Mecánico 1', 'Mecánico 2', 'Ayudante Taller'];
+
+  // Órdenes iniciales
   const [orders, setOrders] = useState<Orden[]>([
     {
       id: '1',
@@ -43,11 +50,15 @@ export default function App() {
       telefono: '525512345678',
       moto: 'KTM Duke 390',
       placa: 'ABC12',
-      falla: 'Servicio general',
-      refacciones: 'Aceite Motul 10W40, Filtro',
+      km: 15000,
+      proximoKm: 18000,
+      mecanico: 'Paul (L.A Custom)',
+      falla: 'Servicio general y ajuste de cadena',
+      refacciones: 'Aceite Motul 10W40, Filtro de aceite',
       total: 1250,
       anticipo: 500,
       estado: 'REPARACIÓN',
+      fotos: [],
       archivada: false
     }
   ]);
@@ -68,10 +79,13 @@ export default function App() {
   const [telefono, setTelefono] = useState('');
   const [moto, setMoto] = useState('');
   const [placa, setPlaca] = useState('');
+  const [km, setKm] = useState('');
+  const [mecanico, setMecanico] = useState(mecanicosEquipo[0]);
   const [falla, setFalla] = useState('');
   const [refacciones, setRefacciones] = useState('');
   const [total, setTotal] = useState('');
   const [anticipo, setAnticipo] = useState('');
+  const [fotosPreview, setFotosPreview] = useState<string[]>([]);
 
   // Formulario Nuevo Producto Inventario
   const [nombreRef, setNombreRef] = useState('');
@@ -109,10 +123,26 @@ export default function App() {
     }
   };
 
+  // Manejar imágenes cargadas
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const arrayFiles = Array.from(files);
+    
+    arrayFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFotosPreview(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!cliente || !moto) return alert('Escribe al menos el Cliente y la Moto.');
 
+    const kmNum = Number(km) || 0;
     const nuevaOrden: Orden = {
       id: Date.now().toString(),
       folio: `LA-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -121,17 +151,21 @@ export default function App() {
       telefono: telefono.replace(/[^0-9]/g, ''),
       moto,
       placa: placa.toUpperCase() || 'SIN-PLACA',
-      falla: falla || 'Mantenimiento',
+      km: kmNum,
+      proximoKm: kmNum > 0 ? kmNum + 3000 : 0, // Cálculo automático de próximo servicio (+3000 km)
+      mecanico,
+      falla: falla || 'Mantenimiento técnico',
       refacciones: refacciones || 'Ninguna',
       total: Number(total) || 0,
       anticipo: Number(anticipo) || 0,
       estado: 'INGRESADO',
+      fotos: fotosPreview,
       archivada: false
     };
 
     setOrders([nuevaOrden, ...orders]);
-    setCliente(''); setTelefono(''); setMoto(''); setPlaca(''); setFalla(''); setRefacciones(''); setTotal(''); setAnticipo('');
-    alert('¡Orden registrada con éxito!');
+    setCliente(''); setTelefono(''); setMoto(''); setPlaca(''); setKm(''); setFalla(''); setRefacciones(''); setTotal(''); setAnticipo(''); setFotosPreview([]);
+    alert('¡Orden registrada con éxito con evidencia e información técnica!');
   };
 
   const cambiarEstado = (orden: Orden, nuevoEstado: Orden['estado']) => {
@@ -170,6 +204,23 @@ export default function App() {
     setNombreRef(''); setStockRef(''); setPrecioRef('');
   };
 
+  // EXPORTAR A EXCEL / CSV
+  const exportarCSV = (datos: any[], nombreArchivo: string) => {
+    if (datos.length === 0) return alert('No hay registros para exportar.');
+    
+    const headers = Object.keys(datos[0]).join(',');
+    const rows = datos.map(obj => Object.values(obj).map(v => `"${v}"`).join(','));
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `${nombreArchivo}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const hoy = new Date().toISOString().split('T')[0];
   const ordenesHoy = orders.filter(o => o.fecha === hoy);
   const totalAnticiposHoy = ordenesHoy.reduce((acc, o) => acc + o.anticipo, 0);
@@ -184,27 +235,30 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', fontFamily: 'sans-serif', paddingBottom: '2rem' }}>
       
-      {/* TICKET MODAL / VISTA DE IMPRESIÓN */}
+      {/* TICKET MODAL DE IMPRESIÓN */}
       {ticketOrder && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem' }}>
           <div style={{ background: '#fff', color: '#000', padding: '2rem', borderRadius: '0.5rem', width: '100%', maxWidth: '400px', fontFamily: 'monospace' }}>
             <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
               <h2 style={{ margin: 0 }}>L.A CONTROL</h2>
-              <p style={{ margin: '0.2rem 0', fontSize: '0.8rem' }}>Taller Mecánico Especializado en Motos</p>
+              <p style={{ margin: '0.2rem 0', fontSize: '0.8rem' }}>Taller Mecánico Especializado</p>
               <p style={{ margin: '0.2rem 0', fontSize: '0.8rem' }}>Folio: <strong>{ticketOrder.folio}</strong> | Fecha: {ticketOrder.fecha}</p>
             </div>
             <hr style={{ border: '1px dashed #000' }} />
             <p style={{ margin: '0.3rem 0' }}><strong>Cliente:</strong> {ticketOrder.cliente}</p>
             <p style={{ margin: '0.3rem 0' }}><strong>Teléfono:</strong> {ticketOrder.telefono || 'N/A'}</p>
             <p style={{ margin: '0.3rem 0' }}><strong>Moto:</strong> {ticketOrder.moto} (Placa: {ticketOrder.placa})</p>
-            <p style={{ margin: '0.3rem 0' }}><strong>Diagnóstico:</strong> {ticketOrder.falla}</p>
+            <p style={{ margin: '0.3rem 0' }}><strong>KM Actual:</strong> {ticketOrder.km} km</p>
+            <p style={{ margin: '0.3rem 0' }}><strong>Próximo Servicio:</strong> {ticketOrder.proximoKm} km</p>
+            <p style={{ margin: '0.3rem 0' }}><strong>Mecánico a cargo:</strong> {ticketOrder.mecanico}</p>
+            <p style={{ margin: '0.3rem 0' }}><strong>Trabajo:</strong> {ticketOrder.falla}</p>
             <p style={{ margin: '0.3rem 0' }}><strong>Refacciones:</strong> {ticketOrder.refacciones}</p>
             <hr style={{ border: '1px dashed #000' }} />
             <p style={{ margin: '0.3rem 0' }}><strong>Total:</strong> ${ticketOrder.total}</p>
             <p style={{ margin: '0.3rem 0' }}><strong>Anticipo:</strong> ${ticketOrder.anticipo}</p>
             <p style={{ margin: '0.3rem 0', fontSize: '1.1rem' }}><strong>Restante:</strong> ${ticketOrder.total - ticketOrder.anticipo}</p>
             <hr style={{ border: '1px dashed #000' }} />
-            <p style={{ textAlign: 'center', fontSize: '0.75rem', marginTop: '1rem' }}>¡Gracias por su preferencia!<br/>No nos hacemos responsables por motos sin recoger después de 30 días.</p>
+            <p style={{ textAlign: 'center', fontSize: '0.75rem', marginTop: '1rem' }}>¡Gracias por tu preferencia!<br/>Motos sin recoger después de 30 días generan costo de resguardo.</p>
             
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
               <button onClick={() => window.print()} style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Imprimir</button>
@@ -232,7 +286,7 @@ export default function App() {
 
       <main style={{ padding: '1rem', maxWidth: '650px', margin: '0 auto' }}>
 
-        {/* VISTA 1: CONSULTA CLIENTE */}
+        {/* VISTA CLIENTE */}
         {view === 'client' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ textAlign: 'center', padding: '1.5rem 1rem', background: '#1e293b', borderRadius: '0.5rem' }}>
@@ -246,8 +300,12 @@ export default function App() {
               <div style={{ background: '#1e293b', padding: '1.25rem', borderRadius: '0.5rem', borderLeft: '5px solid #f59e0b' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: '#f59e0b' }}>Folio: {selectedOrder.folio}</h3>
                 <p><strong>Moto:</strong> {selectedOrder.moto} ({selectedOrder.placa})</p>
+                <p><strong>Mecánico a cargo:</strong> {selectedOrder.mecanico}</p>
                 <p><strong>Trabajo:</strong> {selectedOrder.falla}</p>
                 <p style={{ fontSize: '1.1rem' }}><strong>Estado:</strong> <span style={{ color: '#22c55e', fontWeight: 'bold' }}>{selectedOrder.estado}</span></p>
+                {selectedOrder.proximoKm > 0 && (
+                  <p style={{ color: '#38bdf8', fontSize: '0.9rem' }}>💡 <strong>Próximo servicio recomendado:</strong> a los {selectedOrder.proximoKm} km</p>
+                )}
                 <hr style={{ borderColor: '#334155', margin: '0.75rem 0' }} />
                 <p>Total: ${selectedOrder.total}</p>
                 <p style={{ color: '#f59e0b' }}><strong>Restante a Pagar: ${selectedOrder.total - selectedOrder.anticipo}</strong></p>
@@ -256,7 +314,7 @@ export default function App() {
           </div>
         )}
 
-        {/* VISTA 2: LOGIN */}
+        {/* VISTA LOGIN */}
         {view === 'login' && (
           <div style={{ background: '#1e293b', padding: '1.5rem', borderRadius: '0.5rem', marginTop: '2rem' }}>
             <h2 style={{ textAlign: 'center', margin: '0 0 1rem 0', color: '#f59e0b' }}>Acceso al Personal</h2>
@@ -274,7 +332,7 @@ export default function App() {
           </div>
         )}
 
-        {/* VISTA 3: PANEL DEL TALLER */}
+        {/* VISTA ADMIN / TALLER */}
         {view === 'admin' && userRole && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#334155', padding: '0.5rem 1rem', borderRadius: '0.375rem' }}>
@@ -288,21 +346,47 @@ export default function App() {
               <form onSubmit={handleCreateOrder} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <input type="text" placeholder="Nombre del Cliente *" value={cliente} onChange={(e) => setCliente(e.target.value)} style={inputStyle} />
                 <input type="text" placeholder="Teléfono WhatsApp" value={telefono} onChange={(e) => setTelefono(e.target.value)} style={inputStyle} />
+                
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input type="text" placeholder="Moto (Modelo) *" value={moto} onChange={(e) => setMoto(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
                   <input type="text" placeholder="Placa" value={placa} onChange={(e) => setPlaca(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
                 </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input type="number" placeholder="Kilometraje Actual (KM)" value={km} onChange={(e) => setKm(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+                  <select value={mecanico} onChange={(e) => setMecanico(e.target.value)} style={{ ...inputStyle, flex: 1, background: '#0f172a', color: '#fff' }}>
+                    {mecanicosEquipo.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <textarea placeholder="Falla reportada / Diagnóstico" value={falla} onChange={(e) => setFalla(e.target.value)} rows={2} style={inputStyle} />
                 <input type="text" placeholder="Refacciones / Materiales a usar" value={refacciones} onChange={(e) => setRefacciones(e.target.value)} style={inputStyle} />
+                
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input type="number" placeholder="Presupuesto Total ($)" value={total} onChange={(e) => setTotal(e.target.value)} style={inputStyle} />
                   <input type="number" placeholder="Anticipo Recibido ($)" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} style={inputStyle} />
                 </div>
-                <button type="submit" style={{ padding: '0.75rem', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer' }}>Guardar Orden</button>
+
+                {/* GALERÍA / FOTOS DE EVIDENCIA */}
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>📷 Fotos de Recepción / Evidencia de Rayones:</label>
+                  <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ fontSize: '0.8rem', color: '#94a3b8' }} />
+                  {fotosPreview.length > 0 && (
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', overflowX: 'auto' }}>
+                      {fotosPreview.map((f, i) => (
+                        <img key={i} src={f} alt="Evidencia" style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #f59e0b' }} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button type="submit" style={{ padding: '0.75rem', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer', marginTop: '0.5rem' }}>Guardar Orden</button>
               </form>
             </div>
 
-            {/* PESTAÑAS DE NAVEGACIÓN */}
+            {/* PESTAÑAS */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.25rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
               <button onClick={() => setTab('activas')} style={{ padding: '0.5rem 0.2rem', fontSize: '0.75rem', border: 'none', borderRadius: '0.375rem', background: tab === 'activas' ? '#f59e0b' : '#1e293b', color: tab === 'activas' ? '#000' : '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Activas ({ordenesActivas.length})</button>
               <button onClick={() => setTab('historial')} style={{ padding: '0.5rem 0.2rem', fontSize: '0.75rem', border: 'none', borderRadius: '0.375rem', background: tab === 'historial' ? '#f59e0b' : '#1e293b', color: tab === 'historial' ? '#000' : '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Historial</button>
@@ -320,9 +404,22 @@ export default function App() {
                       <span style={{ fontSize: '0.75rem', background: '#334155', color: '#f59e0b', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold' }}>{o.estado}</span>
                     </div>
                     <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>👤 <strong>Cliente:</strong> {o.cliente}</p>
-                    <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>🏷️ <strong>Placa:</strong> {o.placa}</p>
+                    <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>🏷️ <strong>Placa:</strong> {o.placa} | ⏱️ <strong>KM:</strong> {o.km} km</p>
+                    <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: '#38bdf8' }}>👨‍🔧 <strong>Asignado a:</strong> {o.mecanico}</p>
                     <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>🛠️ <strong>Falla:</strong> {o.falla}</p>
                     <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: '#94a3b8' }}>🔧 <strong>Refacciones:</strong> {o.refacciones}</p>
+                    
+                    {o.fotos.length > 0 && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Evidencias / Recepción:</span>
+                        <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem' }}>
+                          {o.fotos.map((f, i) => (
+                            <img key={i} src={f} alt="Evidencia" style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => window.open(f, '_blank')} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <p style={{ margin: '0.5rem 0', fontSize: '0.85rem' }}>💵 Total: ${o.total} | Anticipo: ${o.anticipo} | <strong style={{ color: '#22c55e' }}>Restante: ${o.total - o.anticipo}</strong></p>
 
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -343,10 +440,13 @@ export default function App() {
               </div>
             )}
 
-            {/* 2. HISTORIAL CON BUSCADOR */}
+            {/* 2. HISTORIAL */}
             {tab === 'historial' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <input type="text" placeholder="🔍 Buscar en historial por folio, cliente o placa..." value={searchHistorial} onChange={(e) => setSearchHistorial(e.target.value)} style={inputStyle} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input type="text" placeholder="🔍 Buscar por folio, cliente o placa..." value={searchHistorial} onChange={(e) => setSearchHistorial(e.target.value)} style={inputStyle} />
+                  <button onClick={() => exportarCSV(ordenesHistorial, 'Historial_Taller')} style={{ padding: '0.5rem', background: '#22c55e', color: '#000', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>📥 Exportar Excel</button>
+                </div>
                 {ordenesHistorial.length === 0 ? (
                   <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>No hay registros en el historial.</p>
                 ) : (
@@ -357,7 +457,8 @@ export default function App() {
                         <span style={{ fontSize: '0.75rem', background: '#334155', color: '#22c55e', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold' }}>ARCHIVADO</span>
                       </div>
                       <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>👤 <strong>Cliente:</strong> {o.cliente} | 🏷️ <strong>Placa:</strong> {o.placa}</p>
-                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>🛠️ <strong>Trabajo:</strong> {o.falla} ({o.refacciones})</p>
+                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>👨‍🔧 <strong>Mecánico:</strong> {o.mecanico} | ⏱️ <strong>Próximo servicio:</strong> {o.proximoKm} km</p>
+                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>🛠️ <strong>Trabajo:</strong> {o.falla}</p>
                       <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>💵 Total cobrado: ${o.total}</p>
                       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                         <button onClick={() => setTicketOrder(o)} style={{ padding: '0.3rem 0.6rem', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer' }}>🖨️ Ver Ticket</button>
@@ -369,7 +470,7 @@ export default function App() {
               </div>
             )}
 
-            {/* 3. INVENTARIO / REFACCIONES */}
+            {/* 3. INVENTARIO */}
             {tab === 'inventario' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem' }}>
@@ -384,7 +485,10 @@ export default function App() {
                   </form>
                 </div>
                 <div style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem' }}>
-                  <h4 style={{ margin: '0 0 0.75rem 0' }}>Stock Actual</h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <h4 style={{ margin: 0 }}>Stock Actual</h4>
+                    <button onClick={() => exportarCSV(inventory, 'Inventario_Taller')} style={{ padding: '0.3rem 0.6rem', background: '#22c55e', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.75rem' }}>📥 Exportar Stock</button>
+                  </div>
                   {inventory.map(item => (
                     <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #334155', fontSize: '0.85rem' }}>
                       <span>{item.nombre}</span>
@@ -395,12 +499,17 @@ export default function App() {
               </div>
             )}
 
-            {/* 4. CORTE DE CAJA DIARIO */}
+            {/* 4. CORTE DE CAJA */}
             {tab === 'caja' && (
               <div style={{ background: '#1e293b', padding: '1.25rem', borderRadius: '0.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <h3 style={{ margin: 0, color: '#f59e0b' }}>📊 Corte de Caja de Hoy</h3>
-                <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>Fecha: {hoy}</p>
-                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ margin: 0, color: '#f59e0b' }}>📊 Corte de Caja de Hoy</h3>
+                    <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>Fecha: {hoy}</p>
+                  </div>
+                  <button onClick={() => exportarCSV(ordenesHoy, `Corte_Caja_${hoy}`)} style={{ padding: '0.4rem 0.8rem', background: '#22c55e', color: '#000', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem' }}>📥 Descargar Corte</button>
+                </div>
+
                 <div style={{ background: '#334155', padding: '1rem', borderRadius: '0.5rem', textAlign: 'center' }}>
                   <span style={{ fontSize: '0.85rem' }}>Total de Anticipos Recibidos Hoy:</span>
                   <h2 style={{ color: '#22c55e', margin: '0.5rem 0 0 0', fontSize: '2rem' }}>${totalAnticiposHoy}</h2>
@@ -413,7 +522,7 @@ export default function App() {
                   ) : (
                     ordenesHoy.map(o => (
                       <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', padding: '0.3rem 0', borderBottom: '1px solid #334155' }}>
-                        <span>{o.folio} - {o.cliente}</span>
+                        <span>{o.folio} - {o.cliente} ({o.mecanico})</span>
                         <span>Anticipo: <strong>${o.anticipo}</strong></span>
                       </div>
                     ))
