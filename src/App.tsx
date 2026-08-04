@@ -123,7 +123,6 @@ export default function App() {
     }
   };
 
-  // Manejar imágenes cargadas
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -152,7 +151,7 @@ export default function App() {
       moto,
       placa: placa.toUpperCase() || 'SIN-PLACA',
       km: kmNum,
-      proximoKm: kmNum > 0 ? kmNum + 3000 : 0, // Cálculo automático de próximo servicio (+3000 km)
+      proximoKm: kmNum > 0 ? kmNum + 3000 : 0,
       mecanico,
       falla: falla || 'Mantenimiento técnico',
       refacciones: refacciones || 'Ninguna',
@@ -165,14 +164,14 @@ export default function App() {
 
     setOrders([nuevaOrden, ...orders]);
     setCliente(''); setTelefono(''); setMoto(''); setPlaca(''); setKm(''); setFalla(''); setRefacciones(''); setTotal(''); setAnticipo(''); setFotosPreview([]);
-    alert('¡Orden registrada con éxito con evidencia e información técnica!');
+    alert('¡Orden registrada con éxito!');
   };
 
   const cambiarEstado = (orden: Orden, nuevoEstado: Orden['estado']) => {
     setOrders(orders.map(o => o.id === orden.id ? { ...o, estado: nuevoEstado } : o));
     if (nuevoEstado === 'LISTO' && orden.telefono) {
       const restante = orden.total - orden.anticipo;
-      const msj = `¡Hola *${orden.cliente}*! 👋 Tu moto *${orden.moto}* ya está *LISTA* en *L.A CONTROL*. 🛠️ Restante a pagar: *$${restante}*. ¡Te esperamos!`;
+      const msj = `¡Hola *${orden.cliente}*! 👋 Tu moto *${orden.moto}* ya está *LISTA* en *L.A Custom & Performance*. 🛠️ Restante a pagar: *$${restante}*. ¡Te esperamos!`;
       setTimeout(() => {
         if (confirm(`¿Enviar aviso de listo por WhatsApp a ${orden.cliente}?`)) {
           window.open(`https://wa.me/${orden.telefono}?text=${msj}`, '_blank');
@@ -204,7 +203,6 @@ export default function App() {
     setNombreRef(''); setStockRef(''); setPrecioRef('');
   };
 
-  // EXPORTAR A EXCEL / CSV
   const exportarCSV = (datos: any[], nombreArchivo: string) => {
     if (datos.length === 0) return alert('No hay registros para exportar.');
     
@@ -238,19 +236,27 @@ export default function App() {
       {/* TICKET MODAL DE IMPRESIÓN */}
       {ticketOrder && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div style={{ background: '#fff', color: '#000', padding: '2rem', borderRadius: '0.5rem', width: '100%', maxWidth: '400px', fontFamily: 'monospace' }}>
-            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0 }}>L.A CONTROL</h2>
-              <p style={{ margin: '0.2rem 0', fontSize: '0.8rem' }}>Taller Mecánico Especializado</p>
+          <div style={{ background: '#fff', color: '#000', padding: '1.5rem', borderRadius: '0.5rem', width: '100%', maxWidth: '380px', fontFamily: 'monospace' }}>
+            
+            {/* LOGO EN EL TICKET */}
+            <div style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
+              <img 
+                src="/logo.png" 
+                alt="L.A Custom & Performance Logo" 
+                style={{ width: '110px', height: '110px', objectFit: 'contain', margin: '0 auto 0.5rem auto', display: 'block' }} 
+              />
+              <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>L.A CUSTOM & PERFORMANCE</h2>
+              <p style={{ margin: '0.2rem 0', fontSize: '0.8rem', fontWeight: 'bold' }}>Mantenimiento y Modificaciones</p>
               <p style={{ margin: '0.2rem 0', fontSize: '0.8rem' }}>Folio: <strong>{ticketOrder.folio}</strong> | Fecha: {ticketOrder.fecha}</p>
             </div>
+
             <hr style={{ border: '1px dashed #000' }} />
             <p style={{ margin: '0.3rem 0' }}><strong>Cliente:</strong> {ticketOrder.cliente}</p>
             <p style={{ margin: '0.3rem 0' }}><strong>Teléfono:</strong> {ticketOrder.telefono || 'N/A'}</p>
             <p style={{ margin: '0.3rem 0' }}><strong>Moto:</strong> {ticketOrder.moto} (Placa: {ticketOrder.placa})</p>
             <p style={{ margin: '0.3rem 0' }}><strong>KM Actual:</strong> {ticketOrder.km} km</p>
             <p style={{ margin: '0.3rem 0' }}><strong>Próximo Servicio:</strong> {ticketOrder.proximoKm} km</p>
-            <p style={{ margin: '0.3rem 0' }}><strong>Mecánico a cargo:</strong> {ticketOrder.mecanico}</p>
+            <p style={{ margin: '0.3rem 0' }}><strong>Mecánico:</strong> {ticketOrder.mecanico}</p>
             <p style={{ margin: '0.3rem 0' }}><strong>Trabajo:</strong> {ticketOrder.falla}</p>
             <p style={{ margin: '0.3rem 0' }}><strong>Refacciones:</strong> {ticketOrder.refacciones}</p>
             <hr style={{ border: '1px dashed #000' }} />
@@ -258,7 +264,7 @@ export default function App() {
             <p style={{ margin: '0.3rem 0' }}><strong>Anticipo:</strong> ${ticketOrder.anticipo}</p>
             <p style={{ margin: '0.3rem 0', fontSize: '1.1rem' }}><strong>Restante:</strong> ${ticketOrder.total - ticketOrder.anticipo}</p>
             <hr style={{ border: '1px dashed #000' }} />
-            <p style={{ textAlign: 'center', fontSize: '0.75rem', marginTop: '1rem' }}>¡Gracias por tu preferencia!<br/>Motos sin recoger después de 30 días generan costo de resguardo.</p>
+            <p style={{ textAlign: 'center', fontSize: '0.75rem', marginTop: '1rem' }}>¡Gracias por confiar en L.A Custom & Performance!<br/>Motos sin recoger después de 30 días generan costo de resguardo.</p>
             
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
               <button onClick={() => window.print()} style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Imprimir</button>
@@ -270,7 +276,9 @@ export default function App() {
 
       {/* HEADER */}
       <header style={{ padding: '1rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, color: '#f59e0b' }}>🛠️ L.A CONTROL</h1>
+        <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          🛠️ L.A CUSTOM & PERFORMANCE
+        </h1>
         <nav style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button onClick={() => setView('client')} style={{ padding: '0.4rem 0.8rem', borderRadius: '0.375rem', border: 'none', background: view === 'client' ? '#f59e0b' : '#1e293b', color: view === 'client' ? '#000' : '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Consulta</button>
           {userRole ? (
