@@ -59,8 +59,14 @@ export default function App() {
       return alert('Por favor ingresa tu correo y contraseña.');
     }
 
-    // Identificar el rol según el correo ingresado
-    if (emailInput.toLowerCase().includes('dueno') || emailInput.toLowerCase().includes('admin')) {
+    const emailClean = emailInput.toLowerCase().trim();
+
+    // TU CORREO PERSONAL AHORA ES RECONOCIDO COMO DUEÑO / ADMIN
+    if (
+      emailClean === 'paulalbertosanchezangeles@gmail.com' ||
+      emailClean.includes('dueno') || 
+      emailClean.includes('admin')
+    ) {
       setUserRole('admin');
     } else {
       setUserRole('worker');
