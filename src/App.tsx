@@ -12,10 +12,12 @@ interface Orden {
   total: number;
   anticipo: number;
   estado: 'INGRESADO' | 'DIAGNÓSTICO' | 'REPARACIÓN' | 'LISTO' | 'ENTREGADO';
+  archivada?: boolean;
 }
 
 export default function App() {
   const [view, setView] = useState<'client' | 'login' | 'admin'>('client');
+  const [tab, setTab] = useState<'activas' | 'historial'>('activas');
   const [userRole, setUserRole] = useState<'admin' | 'worker' | null>(null);
   const [userEmail, setUserEmail] = useState('');
 
@@ -36,7 +38,8 @@ export default function App() {
       falla: 'Servicio general y ajuste de cadena',
       total: 1250,
       anticipo: 500,
-      estado: 'REPARACIÓN'
+      estado: 'REPARACIÓN',
+      archivada: false
     }
   ]);
 
@@ -95,7 +98,7 @@ export default function App() {
     }
   };
 
-  // Crear Orden (Permitido para todos los registrados)
+  // Crear Orden
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!cliente || !moto) {
@@ -113,7 +116,8 @@ export default function App() {
       falla: falla || 'Mantenimiento técnico',
       total: Number(total) || 0,
       anticipo: Number(anticipo) || 0,
-      estado: 'INGRESADO'
+      estado: 'INGRESADO',
+      archivada: false
     };
 
     setOrders([nuevaOrden, ...orders]);
@@ -132,12 +136,27 @@ export default function App() {
     setOrders(orders.map(o => o.id === id ? { ...o, estado: nuevoEstado } : o));
   };
 
+  // Archivar Orden (Quitar de la vista principal y mandar a Historial)
+  const archivarOrden = (id: string) => {
+    if (confirm('¿Deseas enviar esta orden al Historial de Registro? La quita de las activas pero se guarda por seguridad.')) {
+      setOrders(orders.map(o => o.id === id ? { ...o, archivada: true } : o));
+    }
+  };
+
+  // Restaurar Orden
+  const desarchivarOrden = (id: string) => {
+    setOrders(orders.map(o => o.id === id ? { ...o, archivada: false } : o));
+  };
+
   // Enviar WhatsApp
   const enviarWhatsApp = (orden: Orden) => {
     const restante = orden.total - orden.anticipo;
     const mensaje = `Hola *${orden.cliente}*, te saludamos de *L.A CONTROL*. 🛠️%0A%0AEl estado actual de tu moto (*${orden.moto}* - Placa: *${orden.placa}*) es: *${orden.estado}*.%0A%0A💰 *Presupuesto:*%0A- Total: $${orden.total}%0A- Anticipo: $${orden.anticipo}%0A- Restante: *$${restante}*%0A%0A¡Quedamos a tus órdenes!`;
     window.open(`https://wa.me/${orden.telefono}?text=${mensaje}`, '_blank');
   };
+
+  const ordenesActivas = orders.filter(o => !o.archivada);
+  const ordenesHistorial = orders.filter(o => o.archivada);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', fontFamily: 'sans-serif', paddingBottom: '2rem' }}>
@@ -248,7 +267,7 @@ export default function App() {
           </div>
         )}
 
-        {/* VISTA 3: PANEL DEL TALLER (EQUIPO COMPLETO) */}
+        {/* VISTA 3: PANEL DEL TALLER */}
         {view === 'admin' && userRole && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#334155', padding: '0.5rem 1rem', borderRadius: '0.375rem' }}>
@@ -258,7 +277,7 @@ export default function App() {
               </span>
             </div>
 
-            {/* FORMULARIO HABILITADO PARA TODO EL EQUIPO */}
+            {/* FORMULARIO NUEVA ORDEN */}
             <div style={{ background: '#1e293b', padding: '1.25rem', borderRadius: '0.5rem' }}>
               <h3 style={{ margin: '0 0 1rem 0', color: '#f59e0b' }}>➕ Nueva Orden de Trabajo</h3>
               <form onSubmit={handleCreateOrder} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -281,60 +300,119 @@ export default function App() {
               </form>
             </div>
 
-            {/* LISTA DE ÓRDENES */}
-            <div>
-              <h3>📋 Órdenes en Taller ({orders.length})</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.75rem' }}>
-                {orders.map(o => (
-                  <div key={o.id} style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem', borderLeft: '4px solid #f59e0b' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <strong>{o.folio} - {o.moto}</strong>
-                      <span style={{ fontSize: '0.75rem', background: '#334155', color: '#f59e0b', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold' }}>
-                        {o.estado}
-                      </span>
-                    </div>
-
-                    <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>👤 <strong>Cliente:</strong> {o.cliente} {o.telefono ? `(${o.telefono})` : ''}</p>
-                    <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>🏷️ <strong>Placa:</strong> {o.placa}</p>
-                    <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: '#cbd5e1' }}>🛠️ <strong>Detalle:</strong> {o.falla}</p>
-                    
-                    <p style={{ margin: '0.5rem 0 0.25rem 0', fontSize: '0.85rem' }}>💵 Total: ${o.total} | Anticipo: ${o.anticipo} | <strong style={{ color: '#22c55e' }}>Restante: ${o.total - o.anticipo}</strong></p>
-
-                    {/* Botón WhatsApp habilitado para todo el personal */}
-                    {o.telefono && (
-                      <button 
-                        onClick={() => enviarWhatsApp(o)} 
-                        style={{ margin: '0.5rem 0', width: '100%', padding: '0.4rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
-                      >
-                        📲 Notificar por WhatsApp
-                      </button>
-                    )}
-
-                    {/* Control de Estatus */}
-                    <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                      {(['INGRESADO', 'DIAGNÓSTICO', 'REPARACIÓN', 'LISTO', 'ENTREGADO'] as Orden['estado'][]).map((st) => (
-                        <button
-                          key={st}
-                          onClick={() => cambiarEstado(o.id, st)}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            fontSize: '0.7rem',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            background: o.estado === st ? '#f59e0b' : '#334155',
-                            color: o.estado === st ? '#000' : '#fff',
-                            cursor: 'pointer',
-                            fontWeight: o.estado === st ? 'bold' : 'normal'
-                          }}
-                        >
-                          {st}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {/* SELECCIÓN DE PESTAÑAS: ACTIVAS VS HISTORIAL */}
+            <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid #334155', paddingBottom: '0.5rem' }}>
+              <button 
+                onClick={() => setTab('activas')} 
+                style={{ flex: 1, padding: '0.6rem', border: 'none', borderRadius: '0.375rem', background: tab === 'activas' ? '#f59e0b' : '#1e293b', color: tab === 'activas' ? '#000' : '#fff', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                🏍️ En Taller ({ordenesActivas.length})
+              </button>
+              <button 
+                onClick={() => setTab('historial')} 
+                style={{ flex: 1, padding: '0.6rem', border: 'none', borderRadius: '0.375rem', background: tab === 'historial' ? '#f59e0b' : '#1e293b', color: tab === 'historial' ? '#000' : '#fff', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                📁 Historial ({ordenesHistorial.length})
+              </button>
             </div>
+
+            {/* LISTA DE ÓRDENES ACTIVAS */}
+            {tab === 'activas' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {ordenesActivas.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>No hay órdenes activas actualmente.</p>
+                ) : (
+                  ordenesActivas.map(o => (
+                    <div key={o.id} style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem', borderLeft: '4px solid #f59e0b' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <strong>{o.folio} - {o.moto}</strong>
+                        <span style={{ fontSize: '0.75rem', background: '#334155', color: '#f59e0b', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold' }}>
+                          {o.estado}
+                        </span>
+                      </div>
+
+                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>👤 <strong>Cliente:</strong> {o.cliente} {o.telefono ? `(${o.telefono})` : ''}</p>
+                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>🏷️ <strong>Placa:</strong> {o.placa}</p>
+                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: '#cbd5e1' }}>🛠️ <strong>Detalle:</strong> {o.falla}</p>
+                      
+                      <p style={{ margin: '0.5rem 0 0.25rem 0', fontSize: '0.85rem' }}>💵 Total: ${o.total} | Anticipo: ${o.anticipo} | <strong style={{ color: '#22c55e' }}>Restante: ${o.total - o.anticipo}</strong></p>
+
+                      {o.telefono && (
+                        <button 
+                          onClick={() => enviarWhatsApp(o)} 
+                          style={{ margin: '0.5rem 0', width: '100%', padding: '0.4rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
+                        >
+                          📲 Notificar por WhatsApp
+                        </button>
+                      )}
+
+                      {/* Cambiar Estatus */}
+                      <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                        {(['INGRESADO', 'DIAGNÓSTICO', 'REPARACIÓN', 'LISTO', 'ENTREGADO'] as Orden['estado'][]).map((st) => (
+                          <button
+                            key={st}
+                            onClick={() => cambiarEstado(o.id, st)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              fontSize: '0.7rem',
+                              border: 'none',
+                              borderRadius: '0.25rem',
+                              background: o.estado === st ? '#f59e0b' : '#334155',
+                              color: o.estado === st ? '#000' : '#fff',
+                              cursor: 'pointer',
+                              fontWeight: o.estado === st ? 'bold' : 'normal'
+                            }}
+                          >
+                            {st}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Botón para Archivar / Eliminar de la vista activa */}
+                      <button 
+                        onClick={() => archivarOrden(o.id)} 
+                        style={{ marginTop: '0.75rem', width: '100%', padding: '0.4rem', background: '#334155', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.8rem' }}
+                      >
+                        📦 Finalizar y Mandar a Historial
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* LISTA DE HISTORIAL */}
+            {tab === 'historial' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {ordenesHistorial.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>El historial está vacío.</p>
+                ) : (
+                  ordenesHistorial.map(o => (
+                    <div key={o.id} style={{ background: '#1e293b', padding: '1rem', borderRadius: '0.5rem', borderLeft: '4px solid #64748b' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <strong style={{ color: '#94a3b8' }}>{o.folio} - {o.moto}</strong>
+                        <span style={{ fontSize: '0.75rem', background: '#334155', color: '#22c55e', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold' }}>
+                          ARCHIVADO
+                        </span>
+                      </div>
+
+                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>👤 <strong>Cliente:</strong> {o.cliente}</p>
+                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>🏷️ <strong>Placa:</strong> {o.placa}</p>
+                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: '#cbd5e1' }}>🛠️ <strong>Trabajo realizado:</strong> {o.falla}</p>
+                      <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>💵 Total cobrado: ${o.total}</p>
+
+                      <button 
+                        onClick={() => desarchivarOrden(o.id)} 
+                        style={{ marginTop: '0.5rem', padding: '0.3rem 0.6rem', background: 'transparent', color: '#f59e0b', border: '1px solid #f59e0b', borderRadius: '0.25rem', fontSize: '0.75rem', cursor: 'pointer' }}
+                      >
+                        ↩️ Reabrir y volver a colocar en activas
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
           </div>
         )}
       </main>
