@@ -61,7 +61,6 @@ export default function App() {
 
     const emailClean = emailInput.toLowerCase().trim();
 
-    // TU CORREO PERSONAL AHORA ES RECONOCIDO COMO DUEÑO / ADMIN
     if (
       emailClean === 'paulalbertosanchezangeles@gmail.com' ||
       emailClean.includes('dueno') || 
@@ -96,7 +95,7 @@ export default function App() {
     }
   };
 
-  // Crear Orden
+  // Crear Orden (Permitido para todos los registrados)
   const handleCreateOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!cliente || !moto) {
@@ -249,44 +248,38 @@ export default function App() {
           </div>
         )}
 
-        {/* VISTA 3: PANEL DEL TALLER (DUEÑO Y TRABAJADORES) */}
+        {/* VISTA 3: PANEL DEL TALLER (EQUIPO COMPLETO) */}
         {view === 'admin' && userRole && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#334155', padding: '0.5rem 1rem', borderRadius: '0.375rem' }}>
               <span style={{ fontSize: '0.85rem' }}>Usuario: <strong>{userEmail}</strong></span>
               <span style={{ fontSize: '0.75rem', background: userRole === 'admin' ? '#f59e0b' : '#3b82f6', color: '#000', padding: '0.2rem 0.5rem', borderRadius: '0.25rem', fontWeight: 'bold' }}>
-                {userRole === 'admin' ? 'DUEÑO / ADMIN' : 'TRABAJADOR'}
+                {userRole === 'admin' ? 'DUEÑO / ADMIN' : 'EQUIPO TALLER'}
               </span>
             </div>
 
-            {/* FORMULARIO SOLO PERMITIDO PARA DUEÑO / ADMIN */}
-            {userRole === 'admin' ? (
-              <div style={{ background: '#1e293b', padding: '1.25rem', borderRadius: '0.5rem' }}>
-                <h3 style={{ margin: '0 0 1rem 0', color: '#f59e0b' }}>➕ Nueva Orden de Trabajo</h3>
-                <form onSubmit={handleCreateOrder} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <input type="text" placeholder="Nombre del Cliente *" value={cliente} onChange={(e) => setCliente(e.target.value)} style={inputStyle} />
-                  <input type="text" placeholder="Teléfono WhatsApp (10 dígitos)" value={telefono} onChange={(e) => setTelefono(e.target.value)} style={inputStyle} />
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input type="text" placeholder="Moto (Modelo) *" value={moto} onChange={(e) => setMoto(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
-                    <input type="text" placeholder="Placa" value={placa} onChange={(e) => setPlaca(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-                  </div>
-                  <textarea placeholder="Falla reportada / Diagnóstico" value={falla} onChange={(e) => setFalla(e.target.value)} rows={2} style={inputStyle} />
-                  
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input type="number" placeholder="Presupuesto Total ($)" value={total} onChange={(e) => setTotal(e.target.value)} style={inputStyle} />
-                    <input type="number" placeholder="Anticipo Recibido ($)" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} style={inputStyle} />
-                  </div>
+            {/* FORMULARIO HABILITADO PARA TODO EL EQUIPO */}
+            <div style={{ background: '#1e293b', padding: '1.25rem', borderRadius: '0.5rem' }}>
+              <h3 style={{ margin: '0 0 1rem 0', color: '#f59e0b' }}>➕ Nueva Orden de Trabajo</h3>
+              <form onSubmit={handleCreateOrder} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <input type="text" placeholder="Nombre del Cliente *" value={cliente} onChange={(e) => setCliente(e.target.value)} style={inputStyle} />
+                <input type="text" placeholder="Teléfono WhatsApp (10 dígitos)" value={telefono} onChange={(e) => setTelefono(e.target.value)} style={inputStyle} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input type="text" placeholder="Moto (Modelo) *" value={moto} onChange={(e) => setMoto(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
+                  <input type="text" placeholder="Placa" value={placa} onChange={(e) => setPlaca(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+                </div>
+                <textarea placeholder="Falla reportada / Diagnóstico" value={falla} onChange={(e) => setFalla(e.target.value)} rows={2} style={inputStyle} />
+                
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input type="number" placeholder="Presupuesto Total ($)" value={total} onChange={(e) => setTotal(e.target.value)} style={inputStyle} />
+                  <input type="number" placeholder="Anticipo Recibido ($)" value={anticipo} onChange={(e) => setAnticipo(e.target.value)} style={inputStyle} />
+                </div>
 
-                  <button type="submit" style={{ padding: '0.75rem', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                    Guardar Orden
-                  </button>
-                </form>
-              </div>
-            ) : (
-              <div style={{ background: '#1e293b', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-                ℹ️ Modo Trabajador: Puedes actualizar el estatus de las motos pero no crear ni modificar precios.
-              </div>
-            )}
+                <button type="submit" style={{ padding: '0.75rem', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Guardar Orden
+                </button>
+              </form>
+            </div>
 
             {/* LISTA DE ÓRDENES */}
             <div>
@@ -305,12 +298,10 @@ export default function App() {
                     <p style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>🏷️ <strong>Placa:</strong> {o.placa}</p>
                     <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: '#cbd5e1' }}>🛠️ <strong>Detalle:</strong> {o.falla}</p>
                     
-                    {userRole === 'admin' && (
-                      <p style={{ margin: '0.5rem 0 0.25rem 0', fontSize: '0.85rem' }}>💵 Total: ${o.total} | Anticipo: ${o.anticipo} | <strong style={{ color: '#22c55e' }}>Restante: ${o.total - o.anticipo}</strong></p>
-                    )}
+                    <p style={{ margin: '0.5rem 0 0.25rem 0', fontSize: '0.85rem' }}>💵 Total: ${o.total} | Anticipo: ${o.anticipo} | <strong style={{ color: '#22c55e' }}>Restante: ${o.total - o.anticipo}</strong></p>
 
-                    {/* Botón WhatsApp */}
-                    {o.telefono && userRole === 'admin' && (
+                    {/* Botón WhatsApp habilitado para todo el personal */}
+                    {o.telefono && (
                       <button 
                         onClick={() => enviarWhatsApp(o)} 
                         style={{ margin: '0.5rem 0', width: '100%', padding: '0.4rem', background: '#25D366', color: '#fff', border: 'none', borderRadius: '0.375rem', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
@@ -319,7 +310,7 @@ export default function App() {
                       </button>
                     )}
 
-                    {/* Control de Estatus (Disponible para Dueño y Trabajadores) */}
+                    {/* Control de Estatus */}
                     <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
                       {(['INGRESADO', 'DIAGNÓSTICO', 'REPARACIÓN', 'LISTO', 'ENTREGADO'] as Orden['estado'][]).map((st) => (
                         <button
